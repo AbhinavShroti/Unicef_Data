@@ -1,0 +1,289 @@
+---
+title: "UNICEF: Global Health Care Waste Management"
+author: "Abhinav Shroti"
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+    theme: cosmo
+    toc: true
+    css: styles.css
+editor: visual
+---
+
+## BAA1030 Data Analytics & Story Telling
+
+Student Name: Abhinav Shroti  
+Student Number: 47750   
+Program: MSc Management Strategy
+
+## Executive Summary
+
+This report focuses on the challenges in health care waste management services across the world, especially in low- and middle-income countries. Using UNICEF data, we have analyzed the proportion of health care facilities with limited waste management, identified top affected countries, and visualized trends over time. The findings highlight significant gaps that need urgent attention to ensure safe and sustainable health care environments globally.
+
+## Introduction
+
+Health care waste management is a critical yet often overlooked component of a functioning health system. Poor management of medical waste endangers health care workers, patients, and the environment. Despite its importance, many health care facilities, especially in low- and middle-income countries, operate with limited or no proper waste management services. This increases the risks of disease transmission and environmental pollution.
+
+This report, prepared for UNICEF, examines the proportion of health care facilities lacking proper waste management services. Using data analytics and visual storytelling, the report aims to highlight the scale of this issue and promote better understanding.
+
+## Data Preparation
+
+```{python}
+import polars as pl
+
+indicator = pl.read_csv("/Users/abhi/Desktop/Rahul/unicef_indicator_1.csv")
+meta = pl.read_csv("/Users/abhi/Desktop/Rahul/unicef_metadata.csv")
+
+df = indicator.filter(pl.col("indicator") == "Proportion of health care facilities with limited health care waste management services")
+df = df.join(meta, on="country", how="left")
+```
+
+## Visualization 1: Globe - Top 25 Countries
+
+```{python}
+import plotly.graph_objects as go
+import pandas as pd
+
+data = df.to_pandas()
+top25_data = data.sort_values('obs_value', ascending=False).drop_duplicates('country').head(25)
+
+fig = go.Figure(go.Choropleth(
+    locations=top25_data['country'],
+    locationmode='country names',
+    z=top25_data['obs_value'],
+    colorscale='YlGnBu',
+    colorbar_title='Limited Waste Management (%)',
+    marker_line_color='white',
+    marker_line_width=0.5,
+))
+
+fig.update_layout(
+    title_text='🌍 Top 25 Countries by Limited Health Care Waste Management',
+    geo=dict(
+        projection_type='orthographic',
+        showland=True,
+        landcolor="white",
+        showocean=True,
+        oceancolor="lightblue",
+        showlakes=True,
+        lakecolor="lightblue",
+        showcountries=True,
+        countrycolor="grey",
+        resolution=50
+    ),
+    margin={"r":0,"t":50,"l":0,"b":0}
+)
+fig.show()
+```
+
+**This globe visualization shows the top 25 countries where the proportion of limited health care waste management services is highest. Darker colors indicate more serious problems.**
+
+## Visualization 2: Horizontal Bar Chart
+
+```{python}
+from plotnine import *
+
+df_pd = df.to_pandas()
+agg_df = df_pd.groupby("country", as_index=False).agg({"obs_value": "sum"})
+top10_df = agg_df.sort_values("obs_value", ascending=False).head(10)
+
+bar_plot = (
+    ggplot(top10_df)
+    + aes(x='reorder(country, obs_value)', y='obs_value')
+    + geom_bar(stat='identity', width=0.7, fill='teal')
+    + coord_flip()
+    + ggtitle("Top 10 Countries by Total Limited Waste Management")
+    + labs(x='Country', y='Waste Management System in percentage')
+    + theme_minimal()
+    + theme(
+        axis_title=element_text(size=10, weight='bold'),
+        axis_text=element_text(size=11),
+        plot_title=element_text(size=12, weight='bold', ha='center')
+    )
+)
+bar_plot
+```
+
+**This bar chart shows the countries with the highest total issues in health care waste management. It highlights where the problem is most severe.**
+
+## Visualization 3: Yearly Trend Line
+
+```{python}
+plot = (
+    ggplot(df_pd)
+    + aes(x="Year", y="obs_value")
+    + geom_point(color="seagreen", size=3, alpha=0.7)
+    + geom_smooth(method="lm", color='darkblue', fill='lightblue', alpha=0.3)
+    + ggtitle("Trend of Limited Waste Management Over Years")
+    + labs(x="Year", y="Waste Management")
+    + theme_minimal()
+    + theme(
+        axis_title=element_text(size=13, weight='bold'),
+        plot_title=element_text(size=16, weight='bold', ha='center'),
+        axis_text=element_text(size=11)
+    )
+)
+plot
+```
+
+**This trend line shows how the waste management situation has changed over time. A decreasing trend would mean improvement.**
+
+## Visualization 4: Time Series - Top 10 Countries
+
+```{python}
+data = df.to_pandas()
+top_countries = data.groupby('country')['obs_value'].mean().sort_values(ascending=False).head(10).index
+filtered_data = data[data['country'].isin(top_countries)]
+
+plot = (
+    ggplot(filtered_data)
+    + aes(x='Year', y='obs_value', group='country', color='country')
+    + geom_line()
+    + ggtitle("Time Series of Top 10 Countries by Average Limited Waste Management")
+    + labs(x="Year", y="Average Waste Management")
+)
+plot
+```
+
+**This line chart shows the trend for each of the top 10 countries individually, making it easier to compare how different countries are performing over time.**
+
+## Visualization 5: Sunburst Chart
+
+```{python}
+import plotly.express as px
+
+top25_data = df_pd.sort_values('obs_value', ascending=False).drop_duplicates('country').head(25)
+
+fig = px.sunburst(
+    top25_data,
+    path=['country'],
+    values='obs_value',
+    color='obs_value',
+    color_continuous_scale='YlGnBu',
+    title='Sunburst: Top 25 Countries by Limited Waste Management',
+    labels={'obs_value': 'Waste Management System (%)'}
+)
+fig.show()
+```
+
+**The sunburst chart shows the contribution of each country towards the overall waste management problem in a circular layout.**
+
+## Visualization 6: Animated Scatter Plot
+
+```{python}
+fig = px.scatter(
+    df_pd,
+    x="Year",
+    y="obs_value",
+    animation_frame="Year",
+    animation_group="country",
+    size="obs_value",
+    color="country",
+    hover_name="country",
+    size_max=40,
+    range_x=[df_pd['Year'].min()-1, df_pd['Year'].max()+1],
+    range_y=[0, 100],
+    title="Animated Scatter Plot: Waste Management Trends Over Years",
+    labels={'obs_value': 'Waste Management System (%)'}, 
+    color_discrete_sequence=px.colors.qualitative.Vivid
+)
+
+fig.update_layout(
+    plot_bgcolor='whitesmoke',
+    paper_bgcolor='white',
+    font=dict(family="Arial", size=14, color="black"),
+    title_font=dict(size=22, color="darkblue"),
+    hoverlabel=dict(bgcolor="white", font_size=14, font_family="Arial"),
+    margin={"r":20,"t":60,"l":20,"b":20},
+    transition={'duration': 800, 'easing': 'cubic-in-out'},
+    showlegend=False
+)
+fig.update_traces(marker=dict(opacity=0.8, line=dict(width=1, color='DarkSlateGrey')))
+fig.show()
+```
+
+**This animated scatter plot shows how different countries' waste management situations evolved over years. Bigger bubbles represent worse conditions.**
+
+## Visualization 7: Line Chart
+
+```{python}
+# Dual Axis Line Chart (World Average): GDP per Capita vs Life Expectancy
+
+import polars as pl
+import pandas as pd
+import plotly.graph_objects as go
+
+# Load meta data
+meta = pl.read_csv("/Users/abhi/Desktop/Rahul/unicef_metadata.csv")
+meta_pd = meta.to_pandas()
+
+# Group by year: Calculate average GDP per capita and Life Expectancy
+meta_filtered = (
+    meta_pd
+    .groupby('year', as_index=False)
+    .agg({
+        'GDP_per_capita': 'mean',
+        'Life expectancy at birth, total (years)': 'mean'
+    })
+)
+
+# Create figure
+fig = go.Figure()
+
+# Line 1: GDP per Capita
+fig.add_trace(go.Scatter(
+    x=meta_filtered['year'],
+    y=meta_filtered['GDP_per_capita'],
+    name='GDP per Capita',
+    mode='lines+markers',
+    line=dict(color='crimson', width=3),
+    marker=dict(size=7),
+    yaxis='y1'
+))
+
+# Line 2: Life Expectancy
+fig.add_trace(go.Scatter(
+    x=meta_filtered['year'],
+    y=meta_filtered['Life expectancy at birth, total (years)'],
+    name='Life Expectancy',
+    mode='lines+markers',
+    line=dict(color='royalblue', width=3, dash='dash'),
+    marker=dict(size=7),
+    yaxis='y2'
+))
+
+# Layout settings
+fig.update_layout(
+    title="Dual Axis Line Chart (World Average): GDP per Capita vs Life Expectancy",
+    xaxis_title="Year",
+    yaxis=dict(
+        title="GDP per Capita (US$)",
+        titlefont=dict(color="crimson"),
+        tickfont=dict(color="crimson"),
+    ),
+    yaxis2=dict(
+        title="Life Expectancy (Years)",
+        titlefont=dict(color="royalblue"),
+        tickfont=dict(color="royalblue"),
+        anchor="x",
+        overlaying="y",
+        side="right",
+    ),
+    plot_bgcolor='whitesmoke',  
+    paper_bgcolor='whitesmoke', 
+    legend=dict(x=0.1, y=1.1, orientation="h"),
+    margin=dict(l=60, r=60, t=80, b=60),
+    font=dict(family="Arial", size=14, color="black")
+)
+
+fig.show()
+
+```
+
+**This dual-axis line chart compares the global average GDP per capita and life expectancy over the years, highlighting the relationship between economic growth and improvements in public health.**
+
+## Conclusion
+
+The analysis clearly shows that health care waste management is still a major challenge in many countries, especially those with limited resources. Several countries consistently appear among the worst affected. Although some improvements can be seen over time, progress is slow. To address these challenges, countries should invest more in waste management infrastructure, training, and stricter policy enforcement. This will not only protect health workers and communities but also contribute to better environmental sustainability.
+
